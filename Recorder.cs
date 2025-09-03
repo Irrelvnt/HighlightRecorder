@@ -5,6 +5,7 @@ using System.Linq;
 using System.Timers;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace HighlightRecorder
 {
@@ -48,7 +49,7 @@ namespace HighlightRecorder
                 process.StartInfo.FileName = FfmpegPath;
                 process.StartInfo.Arguments = "-encoders";
                 process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true; 
+                process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.CreateNoWindow = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
@@ -101,17 +102,21 @@ namespace HighlightRecorder
 
                 ffmpegProcess = new Process();
                 ffmpegProcess.StartInfo.FileName = FfmpegPath;
-                var screen = Screen.PrimaryScreen.Bounds;
+                int screenIndex = Screen.AllScreens.ToList().FindIndex(s => s.Primary);
                 ffmpegProcess.StartInfo.Arguments =
-                    $"-f gdigrab -framerate 60 -offset_x {screen.X} -offset_y {screen.Y} -video_size {screen.Width}x{screen.Height} " +
-                    $"-i desktop -c:v av1_nvenc -preset p2 -t 10 -fflags +genpts -vsync 0 \"{outputPath}\"";
+                $"-filter_complex \"ddagrab=output_idx={screenIndex}:framerate=60,hwdownload,format=bgra\" " +
+                $"-f dshow -i audio=\"Stereo Mix (Realtek(R) Audio)\" " +
+                $"-c:v libx264 -crf 18 " +
+                $"-c:a aac -b:a 192k " +
+                $"-t 10 " +
+                $"\"{outputPath}\"";
+
 
                 ffmpegProcess.StartInfo.RedirectStandardError = true;
                 ffmpegProcess.StartInfo.RedirectStandardOutput = true;
                 ffmpegProcess.StartInfo.UseShellExecute = false;
                 ffmpegProcess.EnableRaisingEvents = true;
                 ffmpegProcess.StartInfo.CreateNoWindow = true;
-                ffmpegProcess.StartInfo.UseShellExecute = false;
                 ffmpegProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
                 ffmpegProcess.OutputDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); };
@@ -134,6 +139,15 @@ namespace HighlightRecorder
             {
                 Log("Error starting chunk recording: " + ex.Message);
             }
+        }
+
+        private string GetDefaultAudioDevice()
+        {
+            // You may need to change this string depending on your system
+            // Common values:
+            // "virtual-audio-capturer"
+            // "Stereo Mix (Realtek(R) Audio)"
+            return "virtual-audio-capturer";
         }
 
         private void CleanupOldChunks(object sender, ElapsedEventArgs e)
@@ -203,7 +217,6 @@ namespace HighlightRecorder
                 mergeProcess.StartInfo.Arguments = $"-f concat -safe 0 -i \"{fileList}\" -c copy \"{finalFile}\"";
                 mergeProcess.StartInfo.UseShellExecute = false;
                 mergeProcess.StartInfo.CreateNoWindow = true;
-                mergeProcess.StartInfo.UseShellExecute = false;
                 mergeProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
                 mergeProcess.Start();
@@ -240,7 +253,6 @@ namespace HighlightRecorder
 
                     ffmpegProcess.WaitForExit(2000);
                 }
-
 
                 if (Directory.Exists(tempFolder))
                     Directory.Delete(tempFolder, true);
