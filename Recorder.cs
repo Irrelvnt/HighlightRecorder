@@ -104,12 +104,14 @@ namespace HighlightRecorder
                 ffmpegProcess.StartInfo.FileName = FfmpegPath;
                 int screenIndex = Screen.AllScreens.ToList().FindIndex(s => s.Primary);
                 ffmpegProcess.StartInfo.Arguments =
-                $"-filter_complex \"ddagrab=output_idx={screenIndex}:framerate=60,hwdownload,format=bgra\" " +
-                $"-f dshow -i audio=\"{GetDefaultAudioDevice()}\" " +
-                $"-c:v libx264 -crf 18 " +
-                $"-c:a aac -b:a 192k " +
-                $"-t 10 " +
-                $"\"{outputPath}\"";
+$"-filter_complex \"ddagrab=output_idx={screenIndex}:framerate=60:draw_mouse=0\" " + // GPU-only capture
+$"-f dshow -i audio=\"Stereo Mix (Realtek(R) Audio)\" " +                             // Audio input
+$"-c:v h264_nvenc -preset p2 -b:v 5000k -rc:v cbr " +                                // GPU video encoding with 5000 kbps CBR
+$"-c:a aac -b:a 192k " +                                                             // Audio encoding
+$"-t 10 " +                                                                           // 10-second chunks
+$"\"{outputPath}\"";
+
+
 
 
                 ffmpegProcess.StartInfo.RedirectStandardError = true;
