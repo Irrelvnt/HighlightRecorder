@@ -105,7 +105,7 @@ namespace HighlightRecorder
                 int screenIndex = Screen.AllScreens.ToList().FindIndex(s => s.Primary);
                 ffmpegProcess.StartInfo.Arguments =
                 $"-filter_complex \"ddagrab=output_idx={screenIndex}:framerate=60,hwdownload,format=bgra\" " +
-                $"-f dshow -i audio=\"Stereo Mix (Realtek(R) Audio)\" " +
+                $"-f dshow -i audio=\"{GetDefaultAudioDevice()}\" " +
                 $"-c:v libx264 -crf 18 " +
                 $"-c:a aac -b:a 192k " +
                 $"-t 10 " +
@@ -128,7 +128,7 @@ namespace HighlightRecorder
                         Log($"FFmpeg exited with code {ffmpegProcess.ExitCode}");
 
                     if (IsRecording)
-                        StartChunkRecording(); // restart next chunk
+                        StartChunkRecording();
                 };
 
                 ffmpegProcess.Start();
@@ -143,11 +143,7 @@ namespace HighlightRecorder
 
         private string GetDefaultAudioDevice()
         {
-            // You may need to change this string depending on your system
-            // Common values:
-            // "virtual-audio-capturer"
-            // "Stereo Mix (Realtek(R) Audio)"
-            return "virtual-audio-capturer";
+            return "Stereo Mix (Realtek(R) Audio)";
         }
 
         private void CleanupOldChunks(object sender, ElapsedEventArgs e)

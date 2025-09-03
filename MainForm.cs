@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace HighlightRecorder
@@ -9,12 +11,18 @@ namespace HighlightRecorder
         private NotifyIcon trayIcon;
         private ContextMenuStrip trayMenu;
 
+        private const int HOTKEY_ID = 1;
+
         public MainForm()
         {
             InitializeComponent();
             recorder = new Recorder();
             recorder.Logger = Log;
             InitializeTray();
+
+            HotkeyManager.RegisterHotKey(this.Handle, HOTKEY_ID,
+                HotkeyManager.MOD_CONTROL | HotkeyManager.MOD_SHIFT,
+                (uint)Keys.S);
         }
 
         private void InitializeTray()
@@ -44,6 +52,7 @@ namespace HighlightRecorder
                 recorder.StopAndSave();
 
             trayIcon.Visible = false;
+            HotkeyManager.UnregisterHotKey(this.Handle, HOTKEY_ID);
             Application.Exit();
         }
 
@@ -63,6 +72,23 @@ namespace HighlightRecorder
 
         private void btnSave_Click(object sender, EventArgs e)
         {
+            SaveRecording();
+        }
+
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            if (!recorder.IsRecording)
+            {
+                Log("No active recording to cancel.");
+                return;
+            }
+
+            recorder.Cancel();
+            Log("Recording cancelled.");
+        }
+
+        private void SaveRecording()
+        {
             if (!recorder.IsRecording)
             {
                 Log("No active recording to save.");
@@ -81,18 +107,6 @@ namespace HighlightRecorder
             }
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
-        {
-            if (!recorder.IsRecording)
-            {
-                Log("No active recording to cancel.");
-                return;
-            }
-
-            recorder.Cancel();
-            Log("Recording cancelled.");
-        }
-
         private void Log(string message)
         {
             txtLog.AppendText($"{DateTime.Now:T} - {message}{Environment.NewLine}");
@@ -103,5 +117,34 @@ namespace HighlightRecorder
             ExitApplication();
             base.OnFormClosing(e);
         }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == HotkeyManager.WM_HOTKEY)
+            {
+                int id = m.WParam.ToInt32();
+                if (id == HOTKEY_ID)
+                {
+                    SaveRecording();
+                }
+            }
+            base.WndProc(ref m);
+        }
+    }
+
+    public static class HotkeyManager
+    {
+        [DllImport("user32.dll")]
+        public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        public const uint MOD_ALT = 0x0001;
+        public const uint MOD_CONTROL = 0x0002;
+        public const uint MOD_SHIFT = 0x0004;
+        public const uint MOD_WIN = 0x0008;
+
+        public const int WM_HOTKEY = 0x0312;
     }
 }
